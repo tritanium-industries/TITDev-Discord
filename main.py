@@ -54,17 +54,26 @@ async def on_ready():
     await subscriber.subscribe(["titdev-marketeer", "titdev-test"])
 
     marketeer_channel = None
+    test_channel = None
     for channel in bot.get_all_channels():
         if channel.name == "service_marketeer":
             marketeer_channel = channel
+        elif channel.name == "hook_test":
+            test_channel = channel
 
     while True:
         message = await subscriber.next_published()
         if message.channel == "titdev-marketeer":
+            # Message to everyone
+            formatted_message = "@everyone: {0}".format(
+                message.value
+            )
             # noinspection PyUnresolvedReferences
-            await bot.send_message(marketeer_channel, message.value)
+            await bot.send_message(marketeer_channel, formatted_message)
         else:
             print(message.value)
+            # noinspection PyUnresolvedReferences
+            await bot.send_message(test_channel, message)
 
     redis_connection.close()
 
