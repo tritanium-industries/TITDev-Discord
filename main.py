@@ -65,7 +65,7 @@ async def on_ready():
         message = await subscriber.next_published()
         if message.channel == "titdev-marketeer":
             # Message to everyone
-            formatted_message = "@everyone: {0}".format(
+            formatted_message = "{0}".format(
                 message.value
             )
             # noinspection PyUnresolvedReferences
