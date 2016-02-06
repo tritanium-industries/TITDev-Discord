@@ -11,7 +11,9 @@ if os.environ.get("EXTERNAL"):
         "redis_host": os.environ.get("redis_host"),
         "redis_password": os.environ.get("redis_password", None),
         "redis_port": os.environ.get("redis_port", 6379),
-        "redis_db": os.environ.get("redis_db", 0)
+        "redis_db": os.environ.get("redis_db", 0),
+        "discord_user": os.environ.get("discord_user"),
+        "discord_password": os.environ.get("discord_password")
     }
 else:
     with open("../Other-Secrets/TITDev_discord.json") as secrets_file:
