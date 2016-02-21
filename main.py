@@ -4,10 +4,8 @@ import json
 from discord.ext import commands
 import asyncio_redis
 
-bot = commands.Bot(command_prefix="!", description="TIT Testing Bot")
-
 if os.environ.get("EXTERNAL"):
-    test = ""
+    command_prefix = "!"
     secrets = {
         "redis_host": os.environ.get("redis_host"),
         "redis_password": os.environ.get("redis_password", None),
@@ -17,57 +15,82 @@ if os.environ.get("EXTERNAL"):
         "discord_password": os.environ.get("discord_password")
     }
 else:
-    test = "$Test "
+    command_prefix = "$"
     with open("../Other-Secrets/TITDev_discord.json") as secrets_file:
         secrets = json.load(secrets_file)
 
+bot = commands.Bot(command_prefix=command_prefix, description="TIT Testing Bot")
+
+
+# # Commands
 
 # Triggers
-@bot.command()
-async def register(trigger, reply):
-    redis_connection = await asyncio_redis.Connection.create(host=secrets["redis_host"],
-                                                             port=int(secrets["redis_port"]),
-                                                             db=int(secrets["redis_db"]),
-                                                             password=secrets["redis_password"])
-    await redis_connection.hset("triggers", trigger, reply)
-    redis_connection.close()
-    await bot.say("{0}Trigger: {1}, Reply: {2}".format(test, trigger, reply))
+@bot.group(description="Trigger related commands",
+           brief='<Category> Lists triggers [All Users].',
+           pass_context=True)
+async def triggers(ctx):
+    if ctx.invoked_subcommand is None:
+        redis_connection = await asyncio_redis.Connection.create(host=secrets["redis_host"],
+                                                                 port=int(secrets["redis_port"]),
+                                                                 db=int(secrets["redis_db"]),
+                                                                 password=secrets["redis_password"])
+        response = await redis_connection.hgetall("triggers")
+        store_values = await response.asdict()
+        message = "\n".join(["{0}: {1}".format(key, value) for key, value in store_values.items()])
+        if not message.strip():
+            message = "None"
+        redis_connection.close()
+        await bot.say("```\n" + message + "\n```")
 
 
-@bot.command()
-async def unregister(*triggers):
-    redis_connection = await asyncio_redis.Connection.create(host=secrets["redis_host"],
-                                                             port=int(secrets["redis_port"]),
-                                                             db=int(secrets["redis_db"]),
-                                                             password=secrets["redis_password"])
-    await redis_connection.hdel("triggers", list(triggers))
-    redis_connection.close()
-    await bot.say("{0}Removed Trigger(s): {1}".format(test, ", ".join(triggers)))
+@triggers.command(description="Registers a trigger", brief=':: "trigger" "reply" :: Registers a trigger [Admin Only]',
+                  pass_context=True)
+async def register(ctx, new_trigger, reply):
+    if {"Admin", "Developer"} & {x.name for x in ctx.message.author.roles}:
+        redis_connection = await asyncio_redis.Connection.create(host=secrets["redis_host"],
+                                                                 port=int(secrets["redis_port"]),
+                                                                 db=int(secrets["redis_db"]),
+                                                                 password=secrets["redis_password"])
+        await redis_connection.hset("triggers", new_trigger, reply)
+        redis_connection.close()
+        await bot.say("Trigger: {0}, Reply: {1}".format(new_trigger, reply))
+    else:
+        await bot.say("You are not authorized to use this command.")
 
 
-@bot.command()
-async def get(store):
-    redis_connection = await asyncio_redis.Connection.create(host=secrets["redis_host"],
-                                                             port=int(secrets["redis_port"]),
-                                                             db=int(secrets["redis_db"]),
-                                                             password=secrets["redis_password"])
-    response = await redis_connection.hgetall(store)
-    store_values = await response.asdict()
-    message = "\n".join(["{0}: {1}".format(key, value) for key, value in store_values.items()])
-    if not message.strip():
-        message = "None"
-    redis_connection.close()
-    await bot.say("{0}```\n".format(test) + message + "\n```")
+@triggers.command(description="Unregisters a trigger", brief=':: "trigger" :: Unregisters a trigger [Admin Only]',
+                  pass_context=True)
+async def unregister(ctx, *chosen_triggers):
+    if {"Admin", "Developer"} & {x.name for x in ctx.message.author.roles}:
+        redis_connection = await asyncio_redis.Connection.create(host=secrets["redis_host"],
+                                                                 port=int(secrets["redis_port"]),
+                                                                 db=int(secrets["redis_db"]),
+                                                                 password=secrets["redis_password"])
+        await redis_connection.hdel("triggers", list(chosen_triggers))
+        redis_connection.close()
+        await bot.say("Removed Trigger(s): {0}".format(", ".join(chosen_triggers)))
+    else:
+        await bot.say("You are not authorized to use this command.")
 
 
-@bot.command()
+@bot.command(description="Change the name of the bot", brief=":: name :: Change the name of the bot [All Users]")
 async def name(*new_name):
     await bot.edit_profile(secrets["discord_password"], username=" ".join(new_name))
+    await bot.say("I shall now be known as <{0}>. Fear me!".format(new_name))
 
+
+@bot.command(description="Lists your current roles", brief=":: (none) :: Lists your current roles [All Users]",
+             pass_context=True)
+async def roles(ctx):
+    await bot.say("Roles: {0}".format(", ".join([x.name for x in ctx.message.author.roles
+                                                 if not x.name.startswith("@")])))
+
+
+# # Events
 
 @bot.listen('on_message')
 async def custom_message(message):
-    if message.author.id != bot.user.id and not message.content.startswith("!"):
+    if message.author.id != bot.user.id and not message.content.startswith("!") and command_prefix != "$":
         redis_connection = await asyncio_redis.Connection.create(host=secrets["redis_host"],
                                                                  port=int(secrets["redis_port"]),
                                                                  db=int(secrets["redis_db"]),
@@ -78,7 +101,7 @@ async def custom_message(message):
         for trigger, reply in trigger_dict.items():
             if text.find(trigger.lower()) != -1:
                 # noinspection PyUnresolvedReferences
-                await bot.send_message(message.channel, test + reply)
+                await bot.send_message(message.channel, reply)
 
 
 @bot.event
