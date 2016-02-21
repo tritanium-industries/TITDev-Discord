@@ -87,7 +87,7 @@ async def unregister(ctx, *chosen_triggers):
 @bot.command(description="Change the name of the bot", brief=":: name :: Change the name of the bot [All Users]")
 async def name(*new_name):
     await bot.edit_profile(secrets["discord_password"], username=" ".join(new_name))
-    await bot.say("I shall now be known as <{0}>. Fear me!".format(new_name))
+    await bot.say("I shall now be known as <{0}>. Fear me!".format(" ".join(new_name)))
 
 
 @bot.command(description="Lists your current roles", brief=":: (none) :: Lists your current roles [All Users]",
