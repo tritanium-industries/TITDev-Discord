@@ -7,6 +7,7 @@ import asyncio_redis
 bot = commands.Bot(command_prefix="!", description="TIT Testing Bot")
 
 if os.environ.get("EXTERNAL"):
+    test = ""
     secrets = {
         "redis_host": os.environ.get("redis_host"),
         "redis_password": os.environ.get("redis_password", None),
@@ -16,29 +17,68 @@ if os.environ.get("EXTERNAL"):
         "discord_password": os.environ.get("discord_password")
     }
 else:
+    test = "$Test "
     with open("../Other-Secrets/TITDev_discord.json") as secrets_file:
         secrets = json.load(secrets_file)
 
 
+# Triggers
 @bot.command()
-async def activate_slackbot():
-    await bot.say("I have returned!")
+async def register(trigger, reply):
+    redis_connection = await asyncio_redis.Connection.create(host=secrets["redis_host"],
+                                                             port=int(secrets["redis_port"]),
+                                                             db=int(secrets["redis_db"]),
+                                                             password=secrets["redis_password"])
+    await redis_connection.hset("triggers", trigger, reply)
+    redis_connection.close()
+    await bot.say("{0}Trigger: {1}, Reply: {2}".format(test, trigger, reply))
 
 
 @bot.command()
-async def register(group, member):
-    await bot.say("{1} has registered been to {0}".format(group, member))
+async def unregister(*triggers):
+    redis_connection = await asyncio_redis.Connection.create(host=secrets["redis_host"],
+                                                             port=int(secrets["redis_port"]),
+                                                             db=int(secrets["redis_db"]),
+                                                             password=secrets["redis_password"])
+    await redis_connection.hdel("triggers", list(triggers))
+    redis_connection.close()
+    await bot.say("{0}Removed Trigger(s): {1}".format(test, ", ".join(triggers)))
+
+
+@bot.command()
+async def get(store):
+    redis_connection = await asyncio_redis.Connection.create(host=secrets["redis_host"],
+                                                             port=int(secrets["redis_port"]),
+                                                             db=int(secrets["redis_db"]),
+                                                             password=secrets["redis_password"])
+    response = await redis_connection.hgetall(store)
+    store_values = await response.asdict()
+    message = "\n".join(["{0}: {1}".format(key, value) for key, value in store_values.items()])
+    if not message.strip():
+        message = "None"
+    redis_connection.close()
+    await bot.say("{0}```\n".format(test) + message + "\n```")
+
+
+@bot.command()
+async def name(*new_name):
+    await bot.edit_profile(secrets["discord_password"], username=" ".join(new_name))
 
 
 @bot.listen('on_message')
 async def custom_message(message):
-    to_user = None
-    for user in bot.get_all_members():
-        if user.name == "Stroker":
-            to_user = user
-    if message.content.find("handjobs") != -1 and to_user:
-        # noinspection PyUnresolvedReferences
-        await bot.send_message(message.channel, "{0}, care to lend a hand?".format(to_user.mention))
+    if message.author.id != bot.user.id and not message.content.startswith("!"):
+        redis_connection = await asyncio_redis.Connection.create(host=secrets["redis_host"],
+                                                                 port=int(secrets["redis_port"]),
+                                                                 db=int(secrets["redis_db"]),
+                                                                 password=secrets["redis_password"])
+        response = await redis_connection.hgetall("triggers")
+        trigger_dict = await response.asdict()
+        text = message.content.lower()
+        for trigger, reply in trigger_dict.items():
+            if text.find(trigger.lower()) != -1:
+                # noinspection PyUnresolvedReferences
+                await bot.send_message(message.channel, test + reply)
 
 
 @bot.event
