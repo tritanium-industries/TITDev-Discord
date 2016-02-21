@@ -1,5 +1,6 @@
 import os
 import json
+import re
 
 from discord.ext import commands
 import asyncio_redis
@@ -37,6 +38,16 @@ async def triggers(ctx):
         response = await redis_connection.hgetall("triggers")
         store_values = await response.asdict()
         message = "\n".join(["{0}: {1}".format(key, value) for key, value in store_values.items()])
+        # Remove mentions
+        user_ids = re.findall("<@(.*?)>", message)
+        user_map = {}
+        for member in bot.get_all_members():
+            if member.id in user_ids:
+                user_map[member.id] = member.name
+        for key, value in user_map.items():
+            message = message.replace("<@{0}>".format(key), "<{0}>".format(value))
+        message = re.sub("<@.*?>", "", message)
+
         if not message.strip():
             message = "None"
         redis_connection.close()
