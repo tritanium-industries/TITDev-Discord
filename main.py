@@ -20,6 +20,11 @@ else:
     with open("../Other-Secrets/TITDev_discord.json") as secrets_file:
         secrets = json.load(secrets_file)
 
+# Other Settings
+main_server_name = "Tritanium Industries"
+marketeer_channel_name = "service_marketeer"
+test_channel_name = "hook_test"
+
 bot = commands.Bot(command_prefix=command_prefix, description="TIT Testing Bot")
 
 
@@ -129,11 +134,19 @@ async def on_ready():
 
     marketeer_channel = None
     test_channel = None
+    main_server = None
+
+    for server in bot.servers:
+        if server.name == main_server_name:
+            main_server = server
     for channel in bot.get_all_channels():
-        if channel.name == "service_marketeer":
+        if channel.name == marketeer_channel_name:
             marketeer_channel = channel
-        elif channel.name == "hook_test":
+        elif channel.name == test_channel_name:
             test_channel = channel
+
+    await bot.edit_profile(secrets["discord_password"], avatar=bytes(main_server.icon, "utf-8"))
+    print(main_server.icon)
 
     while True:
         message = await subscriber.next_published()
