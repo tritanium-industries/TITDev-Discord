@@ -145,8 +145,8 @@ async def on_ready():
         elif channel.name == test_channel_name:
             test_channel = channel
 
-    await bot.edit_profile(secrets["discord_password"], avatar=bytes(main_server.icon, "utf-8"))
-    print(main_server.icon)
+    # await bot.edit_profile(secrets["discord_password"], avatar=bytes(main_server.icon, "utf-8"))
+    # print(main_server.icon)
 
     while True:
         message = await subscriber.next_published()
