@@ -23,6 +23,7 @@ else:
 # Other Settings
 main_server_name = "Tritanium Industries"
 marketeer_channel_name = "service_marketeer"
+recruitment_channel_name = "recruitment"
 test_channel_name = "hook_test"
 
 bot = commands.Bot(command_prefix=command_prefix, description="TIT Testing Bot")
@@ -130,33 +131,39 @@ async def on_ready():
                                                        db=int(secrets["redis_db"]),
                                                        password=secrets["redis_password"])
     subscriber = await redis_connection.start_subscribe()
-    await subscriber.subscribe(["titdev-marketeer", "titdev-test"])
+    await subscriber.subscribe(["titdev-marketeer", "titdev-recruitment", "titdev-test"])
 
     marketeer_channel = None
     test_channel = None
+    recruitment_channel = None
     main_server = None
 
     for server in bot.servers:
         if server.name == main_server_name:
             main_server = server
     for channel in bot.get_all_channels():
-        if channel.name == marketeer_channel_name:
-            marketeer_channel = channel
-        elif channel.name == test_channel_name:
-            test_channel = channel
-
-    # await bot.edit_profile(secrets["discord_password"], avatar=bytes(main_server.icon, "utf-8"))
-    # print(main_server.icon)
+        if channel.server == main_server:
+            if channel.name == marketeer_channel_name:
+                marketeer_channel = channel
+            elif channel.name == recruitment_channel_name:
+                recruitment_channel = channel
+            elif channel.name == test_channel_name:
+                test_channel = channel
 
     while True:
         message = await subscriber.next_published()
         if message.channel == "titdev-marketeer":
-            # Message to everyone
             formatted_message = "{0}".format(
                 message.value
             )
             # noinspection PyUnresolvedReferences
             await bot.send_message(marketeer_channel, formatted_message)
+        elif message.channel == "titdev-recruitment":
+            formatted_message = "{0}".format(
+                message.value
+            )
+            # noinspection PyUnresolvedReferences
+            await bot.send_message(recruitment_channel, formatted_message)
         else:
             print(message.value)
             # noinspection PyUnresolvedReferences
