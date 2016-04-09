@@ -21,10 +21,8 @@ else:
         secrets = json.load(secrets_file)
 
 # Other Settings
-main_server_name = "Tritanium Industries"
-marketeer_channel_name = "service_marketeer"
-recruitment_channel_name = "recruitment"
-test_channel_name = "hook_test"
+with open("config.json") as config_file:
+    config = json.load(config_file)
 
 bot = commands.Bot(command_prefix=command_prefix, description="TIT Testing Bot")
 
@@ -139,15 +137,15 @@ async def on_ready():
     main_server = None
 
     for server in bot.servers:
-        if server.name == main_server_name:
+        if server.name == config["main_server_name"]:
             main_server = server
     for channel in bot.get_all_channels():
         if channel.server == main_server:
-            if channel.name == marketeer_channel_name:
+            if channel.name == config["marketeer_channel_name"]:
                 marketeer_channel = channel
-            elif channel.name == recruitment_channel_name:
+            elif channel.name == config["recruitment_channel_name"]:
                 recruitment_channel = channel
-            elif channel.name == test_channel_name:
+            elif channel.name == config["test_channel_name"]:
                 test_channel = channel
 
     while True:
