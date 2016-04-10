@@ -3,6 +3,7 @@ import json
 import re
 
 from discord.ext import commands
+# noinspection PyPackageRequirements
 import asyncio_redis
 
 if os.environ.get("EXTERNAL"):
@@ -100,7 +101,7 @@ async def name(*new_name):
 @bot.command(description="Lists all server roles", brief=":: (none) :: Lists all server roles [All Users]",
              pass_context=True)
 async def roles(ctx):
-    await bot.say("Roles: {0}".format([x.name for x in ctx.message.server.roles if not x.name.startswith("@")]))
+    await bot.say("```Roles: {0}```".format([x.name for x in ctx.message.server.roles if not x.name.startswith("@")]))
 
 
 @bot.command(description="Displays server id", brief=":: (none) :: Displays server id [All Users]",
@@ -158,7 +159,9 @@ async def on_ready():
                 test_channel = channel
 
     while True:
+        print("Ready @ {0}".format(main_server.name))
         message = await subscriber.next_published()
+        print("{1} @ {0}".format(main_server.name, message.channel))
         if message.channel == "titdev-marketeer":
             formatted_message = "{0}".format(
                 message.value
@@ -172,8 +175,9 @@ async def on_ready():
             # noinspection PyUnresolvedReferences
             await bot.send_message(recruitment_channel, formatted_message)
         elif message.channel == "titdev-auth":
+            standings = [config["role_prefix"] + x for x in ["Corporation", "Alliance", "+10", "+5"]]
             if message.value.startswith("!"):
-                auto_role_list = [config["role_prefix"] + x for x in message.value[1:].split()]
+                auto_role_list = [config["role_prefix"] + x for x in message.value[1:].split()] + standings
                 delete_role_list = []
                 # Delete roles removed from role list
                 for role in main_server.roles:
@@ -186,32 +190,57 @@ async def on_ready():
                 # Add new roles
                 if auto_role_list:
                     for new_role in auto_role_list:
+                        # noinspection PyUnresolvedReferences
                         await bot.create_role(main_server, name=new_role)
-
             else:
                 member_id = message.value.split()[0]
-                member_roles = [config["role_prefix"] + x for x in message.value.split()[1:]]
 
                 # Find actual member
                 member_auth = None
+                adjust_standing = False
+                if member_id.startswith("#"):
+                    member_id = member_id[1:]
+                    adjust_standing = True
                 for member in main_server.members:
                     if member_id.strip() == member.id:
                         member_auth = member
 
-                # Remove all auto-roles
-                old_role_list = []
-                for old_role in member_auth.roles:
-                    if old_role.name.startswith(config["role_prefix"]):
-                        old_role_list.append(old_role)
-                if old_role_list:
-                    await bot.remove_roles(member_auth, *old_role_list)
-                # Add auto-roles
-                new_role_list = []
-                for role in main_server.roles:
-                    if role.name in member_roles:
-                        new_role_list.append(role)
-                if new_role_list:
-                    await bot.add_roles(member_auth, *new_role_list)
+                if adjust_standing:
+                    new_standing = message.value.split()[1]
+                    server_standings = []
+                    standing_role = None
+                    for role in main_server.roles:
+                        if role.name in standings:
+                            server_standings.append(role)
+                        if role.name.endswith("Corporation") and new_standing == "corporation":
+                            standing_role = role
+                        elif role.name.endswith("Alliance") and new_standing == "alliance":
+                            standing_role = role
+                        elif role.name.endswith("+10") and new_standing == "+10":
+                            standing_role = role
+                        elif role.name.endswith("+5") and new_standing == "+5":
+                            standing_role = role
+                    if standing_role:
+                        await bot.remove_roles(member_auth, *server_standings)
+                        await bot.add_roles(member_auth, standing_role)
+                    else:
+                        print("{0} standing revoked to: {1}".format(member_auth.name, new_standing))
+                else:
+                    member_roles = [config["role_prefix"] + x for x in message.value.split()[1:]]
+                    # Remove all auto-roles
+                    old_role_list = []
+                    for old_role in member_auth.roles:
+                        if old_role.name.startswith(config["role_prefix"]):
+                            old_role_list.append(old_role)
+                    if old_role_list:
+                        await bot.remove_roles(member_auth, *old_role_list)
+                    # Add auto-roles
+                    new_role_list = []
+                    for role in main_server.roles:
+                        if role.name in member_roles:
+                            new_role_list.append(role)
+                    if new_role_list:
+                        await bot.add_roles(member_auth, *new_role_list)
         else:
             print(message.value)
             # noinspection PyUnresolvedReferences
