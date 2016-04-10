@@ -175,6 +175,7 @@ async def on_ready():
             # noinspection PyUnresolvedReferences
             await bot.send_message(recruitment_channel, formatted_message)
         elif message.channel == "titdev-auth":
+            print(message.value)
             standings = [config["role_prefix"] + x for x in ["Corporation", "Alliance", "+10", "+5"]]
             if message.value.startswith("!"):
                 auto_role_list = [config["role_prefix"] + x for x in message.value[1:].split()] + standings
@@ -192,6 +193,38 @@ async def on_ready():
                     for new_role in auto_role_list:
                         # noinspection PyUnresolvedReferences
                         await bot.create_role(main_server, name=new_role)
+            elif message.value.startswith("&"):
+                # Role toggling
+
+                member_id = message.value.split()[0][1:]
+                auto_role = config["role_prefix"] + message.value.split()[1]
+                enable_role = True if message.value.split()[2] == "True" else False
+                # Add role if doesn't exist
+                new_role = True
+                for role in main_server.roles:
+                    if role.name == auto_role:
+                        new_role = False
+                if new_role:
+                    # noinspection PyUnresolvedReferences
+                    await bot.create_role(main_server, name=auto_role)
+                # Find member
+                member_auth = None
+                for member in main_server.members:
+                    if member_id.strip() == member.id:
+                        member_auth = member
+                if member_auth:
+                    # Find Role
+                    new_role = None
+                    for role in main_server.roles:
+                        if role.name == auto_role:
+                            new_role = role
+                    if new_role:
+                        if not enable_role:
+                            await bot.remove_roles(member_auth, new_role)
+                        else:
+                            await bot.add_roles(member_auth, new_role)
+                else:
+                    print(member_id)
             else:
                 member_id = message.value.split()[0]
 
