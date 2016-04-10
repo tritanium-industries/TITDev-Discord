@@ -13,7 +13,10 @@ if os.environ.get("EXTERNAL"):
         "redis_port": os.environ.get("redis_port", 6379),
         "redis_db": os.environ.get("redis_db", 0),
         "discord_user": os.environ.get("discord_user"),
-        "discord_password": os.environ.get("discord_password")
+        "discord_password": os.environ.get("discord_password"),
+        "discord_bot_username": os.environ.get("discord_bot_username"),
+        "discord_bot_id": os.environ.get("discord_bot_id"),
+        "discord_bot_token": os.environ.get("discord_bot_token")
     }
 else:
     command_prefix = "$"
@@ -94,11 +97,16 @@ async def name(*new_name):
     await bot.say("I shall now be known as <{0}>. Fear me!".format(" ".join(new_name)))
 
 
-@bot.command(description="Lists your current roles", brief=":: (none) :: Lists your current roles [All Users]",
+@bot.command(description="Lists all server roles", brief=":: (none) :: Lists all server roles [All Users]",
              pass_context=True)
 async def roles(ctx):
-    await bot.say("Roles: {0}".format(", ".join([x.name for x in ctx.message.author.roles
-                                                 if not x.name.startswith("@")])))
+    await bot.say("Roles: {0}".format([x.name for x in ctx.message.server.roles if not x.name.startswith("@")]))
+
+
+@bot.command(description="Displays server id", brief=":: (none) :: Displays server id [All Users]",
+             pass_context=True)
+async def server_id(ctx):
+    await bot.say("ID: {0}".format(ctx.message.server.id))
 
 
 # # Events
@@ -129,7 +137,8 @@ async def on_ready():
                                                        db=int(secrets["redis_db"]),
                                                        password=secrets["redis_password"])
     subscriber = await redis_connection.start_subscribe()
-    await subscriber.subscribe(["titdev-marketeer", "titdev-recruitment", "titdev-test"])
+    await subscriber.subscribe(["titdev-marketeer", "titdev-recruitment", "titdev-auth",
+                                "titdev-test"])
 
     marketeer_channel = None
     test_channel = None
@@ -162,6 +171,47 @@ async def on_ready():
             )
             # noinspection PyUnresolvedReferences
             await bot.send_message(recruitment_channel, formatted_message)
+        elif message.channel == "titdev-auth":
+            if message.value.startswith("!"):
+                auto_role_list = [config["role_prefix"] + x for x in message.value[1:].split()]
+                delete_role_list = []
+                # Delete roles removed from role list
+                for role in main_server.roles:
+                    if role.name in auto_role_list:
+                        auto_role_list.remove(role.name)
+                    elif role.name.startswith(config["role_prefix"]):
+                        delete_role_list.append(role)
+                for role in delete_role_list:
+                    await bot.delete_role(main_server, role)
+                # Add new roles
+                if auto_role_list:
+                    for new_role in auto_role_list:
+                        await bot.create_role(main_server, name=new_role)
+
+            else:
+                member_id = message.value.split()[0]
+                member_roles = [config["role_prefix"] + x for x in message.value.split()[1:]]
+
+                # Find actual member
+                member_auth = None
+                for member in main_server.members:
+                    if member_id.strip() == member.id:
+                        member_auth = member
+
+                # Remove all auto-roles
+                old_role_list = []
+                for old_role in member_auth.roles:
+                    if old_role.name.startswith(config["role_prefix"]):
+                        old_role_list.append(old_role)
+                if old_role_list:
+                    await bot.remove_roles(member_auth, *old_role_list)
+                # Add auto-roles
+                new_role_list = []
+                for role in main_server.roles:
+                    if role.name in member_roles:
+                        new_role_list.append(role)
+                if new_role_list:
+                    await bot.add_roles(member_auth, *new_role_list)
         else:
             print(message.value)
             # noinspection PyUnresolvedReferences
@@ -171,4 +221,4 @@ async def on_ready():
 
 
 if __name__ == "__main__":
-    bot.run(secrets["discord_user"], secrets["discord_password"])
+    bot.run(secrets["discord_bot_token"])

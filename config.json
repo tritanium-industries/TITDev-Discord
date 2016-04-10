@@ -2,5 +2,6 @@
   "main_server_name": "Tritanium Industries",
   "marketeer_channel_name": "service_marketeer",
   "recruitment_channel_name": "recruitment",
-  "test_channel_name": "hook_test"
+  "test_channel_name": "hook_test",
+  "role_prefix": "Auto_"
 }
