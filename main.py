@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import asyncio
 
 from discord.ext import commands
 # noinspection PyPackageRequirements
@@ -176,6 +177,7 @@ async def on_ready():
             await bot.send_message(recruitment_channel, formatted_message)
         elif message.channel == "titdev-auth":
             print(message.value)
+            await asyncio.sleep(config["rate_wait"])
             standings = [config["role_prefix"] + x for x in ["Corporation", "Alliance", "+10", "+5"]]
             custom = [config["role_prefix"] + "nsfw"]
             if message.value.startswith("!"):
@@ -250,6 +252,9 @@ async def on_ready():
                 for member in main_server.members:
                     if member_id.strip() == member.id:
                         member_auth = member
+                if not member_auth:
+                    print("Member ID {0} is not on this server".format(member_id))
+                    continue
 
                 if adjust_standing:
                     new_standing = message.value.split()[1]
