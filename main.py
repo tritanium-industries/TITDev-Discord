@@ -177,14 +177,15 @@ async def on_ready():
         elif message.channel == "titdev-auth":
             print(message.value)
             standings = [config["role_prefix"] + x for x in ["Corporation", "Alliance", "+10", "+5"]]
+            custom = [config["role_prefix"] + "nsfw"]
             if message.value.startswith("!"):
-                auto_role_list = [config["role_prefix"] + x for x in message.value[1:].split()] + standings
+                auto_role_list = [config["role_prefix"] + x for x in message.value[1:].split()]
                 delete_role_list = []
                 # Delete roles removed from role list
                 for role in main_server.roles:
                     if role.name in auto_role_list:
                         auto_role_list.remove(role.name)
-                    elif role.name.startswith(config["role_prefix"]):
+                    elif role.name.startswith(config["role_prefix"]) and role.name not in standings + custom:
                         delete_role_list.append(role)
                 for role in delete_role_list:
                     await bot.delete_role(main_server, role)
@@ -225,6 +226,18 @@ async def on_ready():
                             await bot.add_roles(member_auth, new_role)
                 else:
                     print(member_id)
+            elif message.value.startswith("@"):
+                member_id = message.value.split()[0][1:]
+                member_name = " ".join(message.value.split()[1:])[1:-1]
+                member_auth = None
+
+                # Find actual member
+                for member in main_server.members:
+                    if member_id.strip() == member.id:
+                        member_auth = member
+
+                if member_auth:
+                    await bot.change_nickname(member_auth, member_name)
             else:
                 member_id = message.value.split()[0]
 
@@ -253,8 +266,9 @@ async def on_ready():
                             standing_role = role
                         elif role.name.endswith("+5") and new_standing == "+5":
                             standing_role = role
-                    if standing_role:
+                    if server_standings:
                         await bot.remove_roles(member_auth, *server_standings)
+                    if standing_role:
                         await bot.add_roles(member_auth, standing_role)
                     else:
                         print("{0} standing revoked to: {1}".format(member_auth.name, new_standing))
@@ -263,7 +277,7 @@ async def on_ready():
                     # Remove all auto-roles
                     old_role_list = []
                     for old_role in member_auth.roles:
-                        if old_role.name.startswith(config["role_prefix"]):
+                        if old_role.name.startswith(config["role_prefix"]) and old_role.name not in standings + custom:
                             old_role_list.append(old_role)
                     if old_role_list:
                         await bot.remove_roles(member_auth, *old_role_list)
