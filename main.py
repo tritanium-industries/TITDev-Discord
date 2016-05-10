@@ -4,6 +4,7 @@ import re
 import asyncio
 
 from discord.ext import commands
+import discord
 # noinspection PyPackageRequirements
 import asyncio_redis
 
@@ -177,122 +178,125 @@ async def on_ready():
             await bot.send_message(recruitment_channel, formatted_message)
         elif message.channel == "titdev-auth":
             print(message.value)
-            await asyncio.sleep(config["rate_wait"])
-            standings = [config["role_prefix"] + x for x in ["Corporation", "Alliance", "+10", "+5"]]
-            custom = [config["role_prefix"] + "nsfw"]
-            if message.value.startswith("!"):
-                auto_role_list = [config["role_prefix"] + x for x in message.value[1:].split()]
-                delete_role_list = []
-                # Delete roles removed from role list
-                for role in main_server.roles:
-                    if role.name in auto_role_list:
-                        auto_role_list.remove(role.name)
-                    elif role.name.startswith(config["role_prefix"]) and role.name not in standings + custom:
-                        delete_role_list.append(role)
-                for role in delete_role_list:
-                    await bot.delete_role(main_server, role)
-                # Add new roles
-                if auto_role_list:
-                    for new_role in auto_role_list:
-                        # noinspection PyUnresolvedReferences
-                        await bot.create_role(main_server, name=new_role)
-            elif message.value.startswith("&"):
-                # Role toggling
+            try:
+                await asyncio.sleep(config["rate_wait"])
+                standings = [config["role_prefix"] + x for x in ["Corporation", "Alliance", "+10", "+5"]]
+                custom = [config["role_prefix"] + "nsfw"]
+                if message.value.startswith("!"):
+                    auto_role_list = [config["role_prefix"] + x for x in message.value[1:].split()]
+                    delete_role_list = []
+                    # Delete roles removed from role list
+                    for role in main_server.roles:
+                        if role.name in auto_role_list:
+                            auto_role_list.remove(role.name)
+                        elif role.name.startswith(config["role_prefix"]) and role.name not in standings + custom:
+                            delete_role_list.append(role)
+                    for role in delete_role_list:
+                        await bot.delete_role(main_server, role)
+                    # Add new roles
+                    if auto_role_list:
+                        for new_role in auto_role_list:
+                            # noinspection PyUnresolvedReferences
+                            await bot.create_role(main_server, name=new_role)
+                elif message.value.startswith("&"):
+                    # Role toggling
 
-                member_id = message.value.split()[0][1:]
-                auto_role = config["role_prefix"] + message.value.split()[1]
-                enable_role = True if message.value.split()[2] == "True" else False
-                # Add role if doesn't exist
-                new_role = True
-                for role in main_server.roles:
-                    if role.name == auto_role:
-                        new_role = False
-                if new_role:
-                    # noinspection PyUnresolvedReferences
-                    await bot.create_role(main_server, name=auto_role)
-                # Find member
-                member_auth = None
-                for member in main_server.members:
-                    if member_id.strip() == member.id:
-                        member_auth = member
-                if member_auth:
-                    # Find Role
-                    new_role = None
+                    member_id = message.value.split()[0][1:]
+                    auto_role = config["role_prefix"] + message.value.split()[1]
+                    enable_role = True if message.value.split()[2] == "True" else False
+                    # Add role if doesn't exist
+                    new_role = True
                     for role in main_server.roles:
                         if role.name == auto_role:
-                            new_role = role
+                            new_role = False
                     if new_role:
-                        if not enable_role:
-                            await bot.remove_roles(member_auth, new_role)
-                        else:
-                            await bot.add_roles(member_auth, new_role)
-                else:
-                    print(member_id)
-            elif message.value.startswith("@"):
-                member_id = message.value.split()[0][1:]
-                member_name = " ".join(message.value.split()[1:])[1:-1]
-                member_auth = None
-
-                # Find actual member
-                for member in main_server.members:
-                    if member_id.strip() == member.id:
-                        member_auth = member
-
-                if member_auth:
-                    await bot.change_nickname(member_auth, member_name)
-            else:
-                member_id = message.value.split()[0]
-
-                # Find actual member
-                member_auth = None
-                adjust_standing = False
-                if member_id.startswith("#"):
-                    member_id = member_id[1:]
-                    adjust_standing = True
-                for member in main_server.members:
-                    if member_id.strip() == member.id:
-                        member_auth = member
-                if not member_auth:
-                    print("Member ID {0} is not on this server".format(member_id))
-                    continue
-
-                if adjust_standing:
-                    new_standing = message.value.split()[1]
-                    server_standings = []
-                    standing_role = None
-                    for role in main_server.roles:
-                        if role.name in standings:
-                            server_standings.append(role)
-                        if role.name.endswith("Corporation") and new_standing == "corporation":
-                            standing_role = role
-                        elif role.name.endswith("Alliance") and new_standing == "alliance":
-                            standing_role = role
-                        elif role.name.endswith("+10") and new_standing == "+10":
-                            standing_role = role
-                        elif role.name.endswith("+5") and new_standing == "+5":
-                            standing_role = role
-                    if server_standings:
-                        await bot.remove_roles(member_auth, *server_standings)
-                    if standing_role:
-                        await bot.add_roles(member_auth, standing_role)
+                        # noinspection PyUnresolvedReferences
+                        await bot.create_role(main_server, name=auto_role)
+                    # Find member
+                    member_auth = None
+                    for member in main_server.members:
+                        if member_id.strip() == member.id:
+                            member_auth = member
+                    if member_auth:
+                        # Find Role
+                        new_role = None
+                        for role in main_server.roles:
+                            if role.name == auto_role:
+                                new_role = role
+                        if new_role:
+                            if not enable_role:
+                                await bot.remove_roles(member_auth, new_role)
+                            else:
+                                await bot.add_roles(member_auth, new_role)
                     else:
-                        print("{0} standing revoked to: {1}".format(member_auth.name, new_standing))
+                        print(member_id)
+                elif message.value.startswith("@"):
+                    member_id = message.value.split()[0][1:]
+                    member_name = " ".join(message.value.split()[1:])[1:-1]
+                    member_auth = None
+
+                    # Find actual member
+                    for member in main_server.members:
+                        if member_id.strip() == member.id:
+                            member_auth = member
+
+                    if member_auth:
+                        await bot.change_nickname(member_auth, member_name)
                 else:
-                    member_roles = [config["role_prefix"] + x for x in message.value.split()[1:]]
-                    # Remove all auto-roles
-                    old_role_list = []
-                    for old_role in member_auth.roles:
-                        if old_role.name.startswith(config["role_prefix"]) and old_role.name not in standings + custom:
-                            old_role_list.append(old_role)
-                    if old_role_list:
-                        await bot.remove_roles(member_auth, *old_role_list)
-                    # Add auto-roles
-                    new_role_list = []
-                    for role in main_server.roles:
-                        if role.name in member_roles:
-                            new_role_list.append(role)
-                    if new_role_list:
-                        await bot.add_roles(member_auth, *new_role_list)
+                    member_id = message.value.split()[0]
+
+                    # Find actual member
+                    member_auth = None
+                    adjust_standing = False
+                    if member_id.startswith("#"):
+                        member_id = member_id[1:]
+                        adjust_standing = True
+                    for member in main_server.members:
+                        if member_id.strip() == member.id:
+                            member_auth = member
+                    if not member_auth:
+                        print("Member ID {0} is not on this server".format(member_id))
+                        continue
+
+                    if adjust_standing:
+                        new_standing = message.value.split()[1]
+                        server_standings = []
+                        standing_role = None
+                        for role in main_server.roles:
+                            if role.name in standings:
+                                server_standings.append(role)
+                            if role.name.endswith("Corporation") and new_standing == "corporation":
+                                standing_role = role
+                            elif role.name.endswith("Alliance") and new_standing == "alliance":
+                                standing_role = role
+                            elif role.name.endswith("+10") and new_standing == "+10":
+                                standing_role = role
+                            elif role.name.endswith("+5") and new_standing == "+5":
+                                standing_role = role
+                        if server_standings:
+                            await bot.remove_roles(member_auth, *server_standings)
+                        if standing_role:
+                            await bot.add_roles(member_auth, standing_role)
+                        else:
+                            print("{0} standing revoked to: {1}".format(member_auth.name, new_standing))
+                    else:
+                        member_roles = [config["role_prefix"] + x for x in message.value.split()[1:]]
+                        # Remove all auto-roles
+                        old_role_list = []
+                        for old_role in member_auth.roles:
+                            if old_role.name.startswith(config["role_prefix"]) and old_role.name not in standings + custom:
+                                old_role_list.append(old_role)
+                        if old_role_list:
+                            await bot.remove_roles(member_auth, *old_role_list)
+                        # Add auto-roles
+                        new_role_list = []
+                        for role in main_server.roles:
+                            if role.name in member_roles:
+                                new_role_list.append(role)
+                        if new_role_list:
+                            await bot.add_roles(member_auth, *new_role_list)
+            except discord.errors.Forbidden as permission_error:
+                print(permission_error)
         else:
             print(message.value)
             # noinspection PyUnresolvedReferences
