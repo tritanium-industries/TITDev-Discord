@@ -160,6 +160,8 @@ async def on_ready():
             elif channel.name == config["test_channel_name"]:
                 test_channel = channel
 
+    last_sent_message = None
+
     while True:
         print("Ready @ {0}".format(main_server.name))
         message = await subscriber.next_published()
@@ -168,14 +170,18 @@ async def on_ready():
             formatted_message = "{0}".format(
                 message.value
             )
-            # noinspection PyUnresolvedReferences
-            await bot.send_message(marketeer_channel, formatted_message)
+            if last_sent_message != formatted_message:
+                # noinspection PyUnresolvedReferences
+                await bot.send_message(marketeer_channel, formatted_message)
+                last_sent_message = formatted_message
         elif message.channel == "titdev-recruitment":
             formatted_message = "{0}".format(
                 message.value
             )
-            # noinspection PyUnresolvedReferences
-            await bot.send_message(recruitment_channel, formatted_message)
+            if last_sent_message != formatted_message:
+                # noinspection PyUnresolvedReferences
+                await bot.send_message(recruitment_channel, formatted_message)
+                last_sent_message = formatted_message
         elif message.channel == "titdev-auth":
             print(message.value)
             try:
@@ -284,7 +290,8 @@ async def on_ready():
                         # Remove all auto-roles
                         old_role_list = []
                         for old_role in member_auth.roles:
-                            if old_role.name.startswith(config["role_prefix"]) and old_role.name not in standings + custom:
+                            if old_role.name.startswith(config["role_prefix"]) and (
+                                        old_role.name not in standings + custom):
                                 old_role_list.append(old_role)
                         if old_role_list:
                             await bot.remove_roles(member_auth, *old_role_list)
@@ -300,7 +307,11 @@ async def on_ready():
         else:
             print(message.value)
             # noinspection PyUnresolvedReferences
-            await bot.send_message(test_channel, message)
+            if last_sent_message != message.value:
+                await bot.send_message(test_channel, message.value)
+                last_sent_message = message.value
+            else:
+                print("Tried to send duplicate message.")
 
     redis_connection.close()
 
