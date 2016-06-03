@@ -2,6 +2,7 @@ import os
 import json
 import re
 import asyncio
+import time
 
 from discord.ext import commands
 import discord
@@ -133,12 +134,20 @@ async def custom_message(message):
 @bot.event
 async def on_ready():
     print("Logged in as: {0}, id={1}".format(bot.user.name, bot.user.id))
+
+    # Patch to prevent multiple discord clients
+    if os.path.isfile("discord.lock"):
+        return
+    with open("discord.lock", "w") as lock_file:
+        lock_file.write(time.time())
+        
     # Redis
     redis_connection = await asyncio_redis.Pool.create(poolsize=10,
                                                        host=secrets["redis_host"],
                                                        port=int(secrets["redis_port"]),
                                                        db=int(secrets["redis_db"]),
                                                        password=secrets["redis_password"])
+
     subscriber = await redis_connection.start_subscribe()
     await subscriber.subscribe(["titdev-marketeer", "titdev-recruitment", "titdev-auth",
                                 "titdev-test"])
