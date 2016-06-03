@@ -139,7 +139,7 @@ async def on_ready():
     if os.path.isfile("discord.lock"):
         return
     with open("discord.lock", "w") as lock_file:
-        lock_file.write(time.time())
+        lock_file.write(str(time.time()))
         
     # Redis
     redis_connection = await asyncio_redis.Pool.create(poolsize=10,
