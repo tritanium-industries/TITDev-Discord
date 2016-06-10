@@ -140,17 +140,19 @@ async def on_ready():
         return
     with open("discord.lock", "w") as lock_file:
         lock_file.write(str(time.time()))
-        
-    # Redis
-    redis_connection = await asyncio_redis.Pool.create(poolsize=10,
-                                                       host=secrets["redis_host"],
-                                                       port=int(secrets["redis_port"]),
-                                                       db=int(secrets["redis_db"]),
-                                                       password=secrets["redis_password"])
 
-    subscriber = await redis_connection.start_subscribe()
-    await subscriber.subscribe(["titdev-marketeer", "titdev-recruitment", "titdev-auth",
-                                "titdev-test"])
+    if not os.path.isfile("discord.lock"):
+        # Redis
+        redis_connection = await asyncio_redis.Pool.create(poolsize=1,
+                                                           host=secrets["redis_host"],
+                                                           port=int(secrets["redis_port"]),
+                                                           db=int(secrets["redis_db"]),
+                                                           password=secrets["redis_password"])
+        subscriber = await redis_connection.start_subscribe()
+        await subscriber.subscribe(["titdev-marketeer", "titdev-recruitment", "titdev-auth",
+                                    "titdev-test"])
+    else:
+        return
 
     marketeer_channel = None
     test_channel = None
