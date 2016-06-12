@@ -136,12 +136,9 @@ async def on_ready():
     print("Logged in as: {0}, id={1}".format(bot.user.name, bot.user.id))
 
     # Patch to prevent multiple discord clients
-    if os.path.isfile("discord.lock"):
-        return
-    with open("discord.lock", "w") as lock_file:
-        lock_file.write(str(time.time()))
-
     if not os.path.isfile("discord.lock"):
+        with open("discord.lock", "a") as lock_file:
+            lock_file.write(str(time.time()) + "\n")
         # Redis
         redis_connection = await asyncio_redis.Pool.create(poolsize=1,
                                                            host=secrets["redis_host"],
